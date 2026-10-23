@@ -32,8 +32,7 @@ Section "FramePress" SEC_MAIN
  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "DisplayName" "FramePress"
  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "DisplayVersion" "0.1.0"
  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "DisplayIcon" "$INSTDIR\FramePress.App.exe"
- WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "UninstallString" '$"$INSTDIR\Uninstall.exe$"'
- WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "NoModify" 1
+ WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "UninstallString" '"$INSTDIR\Uninstall.exe"' WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "NoModify" 1
  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "NoRepair" 1
 SectionEnd
 Section /o "Desktop shortcut" SEC_DESKTOP

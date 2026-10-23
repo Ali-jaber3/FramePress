@@ -24,13 +24,24 @@ jobs:
       - name: Test, publish and create installer
         shell: pwsh
         run: ./Build-Release.ps1
-      - name: WPF startup and render smoke test
+            - name: WPF startup and render smoke test
         shell: pwsh
         run: |
           $process = Start-Process ./artifacts/publish/FramePress.App.exe -ArgumentList "--smoke-test" -PassThru
-          if (!$process.WaitForExit(60000)) { $process.Kill(); throw "WPF smoke test timed out" }
-          if ($process.ExitCode -ne 0) { throw "WPF startup or binding validation failed" }
-      - uses: actions/upload-artifact@v4
+          if (!$process.WaitForExit(60000)) {
+            $process.Kill()
+            throw "WPF smoke test timed out"
+          }
+          $process.Refresh()
+          if ($process.ExitCode -ne 0) {
+            foreach ($log in @("artifacts/ui-smoke-error.txt", "artifacts/wpf-bindings.log")) {
+              if (Test-Path $log) {
+                Write-Host "Log: $log"
+                Get-Content $log
+              }
+            }
+            throw "WPF startup or binding validation failed"
+          }
         with:
           name: FramePress-Windows
           path: |
