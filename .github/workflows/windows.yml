@@ -42,6 +42,7 @@ jobs:
             }
             throw "WPF startup or binding validation failed"
           }
+      - uses: actions/upload-artifact@v4
         with:
           name: FramePress-Windows
           path: |
