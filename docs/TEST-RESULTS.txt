@@ -1,0 +1,29 @@
+PASS: FFmpeg tools and H264 available
+PASS: portrait and landscape classify equally
+PASS: invalid CRF and preset rejected
+PASS: recursive scan ignores generated and unrelated files
+PASS: real H264 encode preserves source audio and dimensions
+PASS: video without audio works
+PASS: replacement preserves original recovery bytes
+PASS: MP4 same-path replacement keeps recovery backup
+PASS: pre-cancel leaves master untouched
+PASS: cancellation kills active encode and removes temporary output
+PASS: HDR blocked before encoding
+PASS: 10-bit safeguard and optional H265 output
+PASS: subtitles and multiple video streams blocked
+PASS: data streams require copy mode
+PASS: source changed since scan is never replaced
+PASS: destination preserves nested structure
+PASS: destination traversal blocked
+PASS: sample estimate scales with actual sample duration
+PASS: sample never replaces the original
+PASS: PNG image to WebP
+PASS: larger image output discarded
+PASS: animated PNG and WebP rejected without losing frames
+PASS: portrait output keeps its original orientation and dimensions
+PASS: rotation metadata is applied without changing visible orientation
+PASS: actual 10-bit SDR H265 output remains 10-bit
+PASS: CSV fields quoted and spreadsheet formula escaped
+PASS: ten complete language dictionaries and well-formed XAML
+
+27 passed, 0 failed

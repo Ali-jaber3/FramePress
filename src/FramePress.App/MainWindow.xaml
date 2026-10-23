@@ -1,0 +1,189 @@
+<Window x:Class="FramePress.App.MainWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:core="clr-namespace:FramePress.Core;assembly=FramePress.Core"
+ Background="{DynamicResource BackgroundBrush}" Foreground="{DynamicResource TextBrush}"
+ FontFamily="Segoe UI" FontSize="13" Language="{Binding L.Code, ConverterCulture=en-US}"
+ Title="FramePress v0.1.0" Width="1360" Height="900" MinWidth="1080" MinHeight="700"
+ WindowStartupLocation="CenterScreen" Icon="Assets/FramePress.png"
+ FlowDirection="{Binding Direction}" Closing="OnClosing" AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver">
+ <Grid Margin="28,22">
+  <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+  <Grid Margin="0,0,0,22">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+   <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+    <Image Source="Assets/FramePress.png" Width="42" Height="42" Margin="0,0,14,0" />
+    <StackPanel><TextBlock Text="FramePress 0.1" FontSize="26" FontWeight="Bold" FlowDirection="LeftToRight" /><TextBlock Text="{Binding L[Tagline]}" Style="{StaticResource Muted}" /></StackPanel>
+   </StackPanel>
+   <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+    <ComboBox x:Name="LanguagePicker" ItemsSource="{Binding Languages}" SelectedItem="{Binding Language}" Width="150" Margin="0,0,12,0" AutomationProperties.Name="Language">
+     <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+    </ComboBox>
+    <Button Width="44" Height="42" Padding="0" Click="ToggleTheme" ToolTip="{Binding L[Theme]}" AutomationProperties.Name="{Binding L[Theme]}">
+     <Grid Width="24" Height="24" FlowDirection="LeftToRight" RenderTransformOrigin="0.5,0.5">
+      <Grid.RenderTransform><RotateTransform x:Name="ThemeRotation" /></Grid.RenderTransform>
+      <Canvas x:Name="SunIcon" Width="24" Height="24">
+       <Ellipse Width="10" Height="10" Canvas.Left="7" Canvas.Top="7" Fill="#EDBD68" />
+       <Path Stroke="#EDBD68" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M12,1 L12,4 M12,20 L12,23 M1,12 L4,12 M20,12 L23,12 M4,4 L6,6 M18,18 L20,20 M4,20 L6,18 M18,6 L20,4" />
+      </Canvas>
+      <Path x:Name="MoonIcon" Fill="#BEADFF" Data="M20,15 A9,9 0 1 1 9,3 A7,7 0 0 0 20,15 Z" Opacity="0" />
+     </Grid>
+    </Button>
+   </StackPanel>
+  </Grid>
+  <Grid Grid.Row="1" Margin="0,0,0,18">
+   <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+   <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="12" Padding="18,14" Margin="0,0,10,0">
+    <StackPanel><TextBlock Text="{Binding L[Queued]}" Style="{StaticResource Muted}" /><TextBlock Text="{Binding CountText}" FontSize="25" FontWeight="SemiBold" Margin="0,4,0,0" /></StackPanel>
+   </Border>
+   <Border Grid.Column="1" Background="{DynamicResource SurfaceBrush}" CornerRadius="12" Padding="18,14" Margin="0,0,10,0">
+    <StackPanel><TextBlock Text="{Binding L[SourceSize]}" Style="{StaticResource Muted}" /><TextBlock Text="{Binding TotalSize}" FlowDirection="LeftToRight" FontSize="25" FontWeight="SemiBold" Margin="0,4,0,0" /></StackPanel>
+   </Border>
+   <Border Grid.Column="2" Background="{DynamicResource SurfaceBrush}" CornerRadius="12" Padding="18,14" Margin="0,0,10,0">
+    <StackPanel><TextBlock Text="{Binding L[OutputSize]}" Style="{StaticResource Muted}" /><TextBlock Text="{Binding OutputSize}" FlowDirection="LeftToRight" FontSize="25" FontWeight="SemiBold" Margin="0,4,0,0" /></StackPanel>
+   </Border>
+   <Border Grid.Column="3" Background="{DynamicResource AccentSoftBrush}" CornerRadius="12" Padding="18,14">
+    <StackPanel><TextBlock Text="{Binding L[Saved]}" Style="{StaticResource Muted}" /><TextBlock Text="{Binding SavedSize}" FlowDirection="LeftToRight" Foreground="{DynamicResource SuccessBrush}" FontSize="25" FontWeight="SemiBold" Margin="0,4,0,0" /></StackPanel>
+   </Border>
+  </Grid>
+  <Grid Grid.Row="2">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="325" /><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+   <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="20">
+     <StackPanel IsEnabled="{Binding Idle}">
+      <TextBlock Text="{Binding L[Source]}" FontWeight="SemiBold" FontSize="17" Margin="0,0,0,12" />
+      <Button Content="{Binding L[ChooseFolder]}" Click="ChooseSource" Style="{StaticResource PrimaryButton}" />
+      <TextBox Text="{Binding Source, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" Margin="0,10,0,12" TextWrapping="Wrap" FlowDirection="LeftToRight" MaxHeight="75" />
+      <CheckBox Content="{Binding L[Recursive]}" IsChecked="{Binding Recursive}" Margin="0,0,0,14" />
+      <Button Content="{Binding L[Start]}" Click="Start" Style="{StaticResource PrimaryButton}" />
+      <Button Content="{Binding L[ScanOnly]}" Click="Scan" Padding="8,5" FontSize="11" Margin="0,8,0,0" />
+      <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,20" />
+      <TextBlock Text="{Binding L[Hardware]}" FontWeight="SemiBold" Margin="0,0,0,8" />
+      <TextBlock Text="CPU" Foreground="{DynamicResource AccentBrush}" FontSize="11" />
+      <TextBlock Text="{Binding HardwareCpu}" Style="{StaticResource Muted}" FontSize="11" FlowDirection="LeftToRight" Margin="0,2,0,8" />
+      <TextBlock Text="GPU" Foreground="{DynamicResource AccentBrush}" FontSize="11" />
+      <TextBlock Text="{Binding HardwareGpu}" Style="{StaticResource Muted}" FontSize="11" FlowDirection="LeftToRight" Margin="0,2,0,8" />
+      <TextBlock Text="{Binding EncoderSummary}" Foreground="{DynamicResource SuccessBrush}" FontSize="11" FlowDirection="LeftToRight" Margin="0,0,0,12" />
+      <CheckBox Content="{Binding L[ShowAfter]}" IsChecked="{Binding ShowAfterSize}" Margin="0,0,0,16" />
+      <TextBlock Text="{Binding L[Acceleration]}" FontWeight="SemiBold" Margin="0,0,0,8" />
+      <ComboBox ItemsSource="{Binding AccelerationModes}" SelectedItem="{Binding Acceleration}" FlowDirection="LeftToRight" />
+      <TextBlock Text="{Binding L[AccelerationHint]}" Style="{StaticResource Muted}" FontSize="11" Margin="0,8,0,12" />
+      <CheckBox Content="{Binding L[FullVerification]}" IsChecked="{Binding FullVerification}" />
+      <TextBlock Text="{Binding L[VerificationHint]}" Style="{StaticResource Muted}" FontSize="11" Margin="0,8,0,14" />
+      <TextBlock Text="{Binding L[SaveMode]}" FontWeight="SemiBold" FontSize="17" Margin="0,0,0,12" />
+      <ComboBox SelectedIndex="{Binding Mode}">
+       <ComboBoxItem Content="{Binding L[Copies]}" /><ComboBoxItem Content="{Binding L[Replace]}" />
+      </ComboBox>
+      <TextBlock Text="{Binding L[BackupHint]}" Style="{StaticResource Muted}" FontSize="11" Margin="0,8,0,14" />
+      <Button Content="{Binding L[Destination]}" Click="ChooseDestination" />
+      <TextBox Text="{Binding Destination, UpdateSourceTrigger=PropertyChanged}" Margin="0,10,0,8" FlowDirection="LeftToRight" />
+      <TextBlock Text="{Binding L[DestinationHint]}" Style="{StaticResource Muted}" FontSize="11" />
+      <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,20" />
+      <CheckBox Content="{Binding L[Images]}" IsChecked="{Binding Images}" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding L[ImageHint]}" Style="{StaticResource Muted}" FontSize="11" Margin="0,8,0,10" />
+      <Grid IsEnabled="{Binding Images}"><Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
+       <Slider Minimum="50" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding ImageQuality}" VerticalAlignment="Center" />
+       <TextBlock Grid.Column="1" Text="{Binding ImageQuality}" HorizontalAlignment="Center" />
+      </Grid>
+      <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,20" />
+      <CheckBox Content="{Binding L[HighBit]}" IsChecked="{Binding AllowHighBitDepth}" />
+      <TextBlock Text="{Binding L[HighBitHint]}" Style="{StaticResource Muted}" FontSize="11" Margin="0,8,0,0" />
+     </StackPanel>
+    </ScrollViewer>
+   </Border>
+   <TabControl Grid.Column="2" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource TextBrush}">
+    <TabItem Header="{Binding L[Queue]}">
+     <Grid Margin="0,16,0,0"><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+      <DockPanel Margin="0,0,0,12">
+       <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+        <Button Content="{Binding L[ManualStart]}" Click="ManualStart" IsEnabled="{Binding Idle}" Padding="10,6" Margin="0,0,8,0" />
+        <Button Content="{Binding L[SelectAll]}" Click="SelectAll" IsEnabled="{Binding Idle}" Padding="10,6" Margin="0,0,8,0" />
+        <Button Content="{Binding L[Clear]}" Click="Clear" IsEnabled="{Binding Idle}" Padding="10,6" />
+       </StackPanel>
+       <TextBlock Text="{Binding L[QueueHint]}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,10,0" />
+      </DockPanel>
+      <Border Grid.Row="1" Background="{DynamicResource SurfaceBrush}" CornerRadius="12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" ClipToBounds="True">
+       <DataGrid x:Name="QueueGrid" ItemsSource="{Binding Files}" IsReadOnly="False" SelectionUnit="FullRow" PreviewMouseDoubleClick="OpenSelected">
+        <DataGrid.Columns>
+         <DataGridTemplateColumn Width="38"><DataGridTemplateColumn.CellTemplate><DataTemplate>
+          <CheckBox IsChecked="{Binding Selected, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" IsEnabled="{Binding DataContext.Idle, RelativeSource={RelativeSource AncestorType=Window}}" />
+         </DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+         <DataGridTemplateColumn Width="*" MinWidth="190"><DataGridTemplateColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.L[File], RelativeSource={RelativeSource AncestorType=Window}}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate>
+          <DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel VerticalAlignment="Center" ToolTip="{Binding Media.Path}">
+           <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+           <TextBlock Text="{Binding Kind}" Foreground="{DynamicResource AccentBrush}" FontSize="10" />
+           <TextBlock Text="{Binding Folder}" Foreground="{DynamicResource MutedBrush}" FontSize="10" TextTrimming="CharacterEllipsis" FlowDirection="LeftToRight" />
+          </StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate>
+         </DataGridTemplateColumn>
+         <DataGridTextColumn Binding="{Binding Tier}" IsReadOnly="True" Width="65" Header="HD" />
+         <DataGridTemplateColumn Width="90"><DataGridTemplateColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.L[Before], RelativeSource={RelativeSource AncestorType=Window}}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Size}" FlowDirection="LeftToRight" VerticalAlignment="Center" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+         <DataGridTemplateColumn x:Name="AfterSizeColumn" Width="90"><DataGridTemplateColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.L[After], RelativeSource={RelativeSource AncestorType=Window}}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding AfterSize}" FlowDirection="LeftToRight" VerticalAlignment="Center" Foreground="{DynamicResource SuccessBrush}" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+         <DataGridTemplateColumn x:Name="ReductionColumn" Width="75"><DataGridTemplateColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.L[Reduction], RelativeSource={RelativeSource AncestorType=Window}}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Reduction}" FlowDirection="LeftToRight" VerticalAlignment="Center" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+         <DataGridTextColumn Binding="{Binding Duration}" IsReadOnly="True" Width="85" Header="hh:mm:ss" />
+         <DataGridTemplateColumn Width="140"><DataGridTemplateColumn.HeaderTemplate><DataTemplate><TextBlock Text="{Binding DataContext.L[Status], RelativeSource={RelativeSource AncestorType=Window}}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate>
+          <DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel VerticalAlignment="Center" ToolTip="{Binding Detail}">
+           <TextBlock Text="{Binding State}" FontSize="11" TextTrimming="CharacterEllipsis" /><ProgressBar Value="{Binding Progress}" Margin="0,8,0,0" />
+          </StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate>
+         </DataGridTemplateColumn>
+        </DataGrid.Columns>
+       </DataGrid>
+      </Border>
+      <TextBlock Grid.Row="2" Text="{Binding Estimate}" Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" Margin="0,12,0,0" LineHeight="21" />
+     </Grid>
+    </TabItem>
+    <TabItem Header="{Binding L[Profiles]}">
+     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,16,0,0">
+      <StackPanel IsEnabled="{Binding Idle}">
+       <TextBlock Text="{Binding L[ProfilesHint]}" Style="{StaticResource Muted}" Margin="0,0,0,16" />
+       <ItemsControl ItemsSource="{Binding Profiles}">
+        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate><DataTemplate>
+         <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,12,12" Width="230">
+          <StackPanel>
+           <CheckBox IsChecked="{Binding Enabled}" Content="{Binding Tier}" FontSize="19" FontWeight="SemiBold" Margin="0,0,0,14" />
+           <TextBlock Text="{Binding DataContext.L[Quality], RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource Muted}" />
+           <Slider Minimum="16" Maximum="30" Value="{Binding Crf}" IsSnapToTickEnabled="True" TickFrequency="1" Margin="0,8" />
+           <TextBlock Text="{Binding Crf, StringFormat=CRF {0}}" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" FlowDirection="LeftToRight" />
+           <TextBlock Text="{Binding DataContext.L[Speed], RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource Muted}" Margin="0,12,0,6" />
+           <ComboBox ItemsSource="{x:Static core:CompressionProfile.Presets}" SelectedItem="{Binding Preset}" FlowDirection="LeftToRight" />
+           <TextBlock Text="{Binding DataContext.L[Codec], RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource Muted}" Margin="0,12,0,6" />
+           <ComboBox ItemsSource="{x:Static core:CompressionProfile.Codecs}" SelectedItem="{Binding Codec}" FlowDirection="LeftToRight" />
+           <TextBlock Text="{Binding SampleSummary}" Foreground="{DynamicResource SuccessBrush}" TextWrapping="Wrap" FontSize="11" Margin="0,10,0,0" />
+          </StackPanel>
+         </Border>
+        </DataTemplate></ItemsControl.ItemTemplate>
+       </ItemsControl>
+       <Border Background="{DynamicResource AccentSoftBrush}" CornerRadius="10" Padding="16" Margin="0,4,0,0"><TextBlock Text="{Binding L[QualityGuide]}" TextWrapping="Wrap" LineHeight="22" /></Border>
+      </StackPanel>
+     </ScrollViewer>
+    </TabItem>
+    <TabItem Header="{Binding L[Activity]}">
+     <ListBox ItemsSource="{Binding Log}" Margin="0,16,0,0" Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource TextBrush}" BorderThickness="0" FontFamily="Consolas" FontSize="12" FlowDirection="LeftToRight" ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+    </TabItem>
+    <TabItem Header="{Binding L[Guide]}">
+     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,16,0,0">
+      <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="12" Padding="24"><StackPanel>
+       <TextBlock Text="{Binding L[GuideTitle]}" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,18" />
+       <TextBlock Text="{Binding L[GuideText]}" TextWrapping="Wrap" LineHeight="25" />
+       <TextBlock Text="{Binding L[Limits]}" Style="{StaticResource Muted}" Margin="0,20,0,0" />
+      </StackPanel></Border>
+     </ScrollViewer>
+    </TabItem>
+   </TabControl>
+  </Grid>
+  <Border Grid.Row="3" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="18" Margin="0,18,0,0">
+   <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+     <StackPanel VerticalAlignment="Center" Margin="0,0,16,0"><TextBlock Text="{Binding Status}" FontWeight="SemiBold" /><TextBlock Text="{Binding Current}" Style="{StaticResource Muted}" FontSize="11" TextTrimming="CharacterEllipsis" /></StackPanel>
+     <WrapPanel Grid.Column="1">
+      <Button Content="{Binding L[Report]}" Click="ExportReport" Margin="0,0,8,0" />
+      <Button Content="{Binding L[Sample]}" Click="Sample" IsEnabled="{Binding Idle}" Margin="0,0,8,0" />
+      <Button Content="{Binding L[Cancel]}" Click="Cancel" IsEnabled="{Binding Busy}" Margin="0,0,8,0" />
+      <Button Content="{Binding L[Start]}" Click="Start" IsEnabled="{Binding Idle}" Style="{StaticResource PrimaryButton}" />
+     </WrapPanel>
+    </Grid>
+    <ProgressBar Grid.Row="1" IsIndeterminate="{Binding Indeterminate}" Value="{Binding Overall}" Margin="0,16,0,0" />
+   </Grid>
+  </Border>
+ </Grid>
+</Window>

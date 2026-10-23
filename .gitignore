@@ -1,0 +1,16 @@
+**/bin/
+**/obj/
+.vs/
+.vscode/
+artifacts/
+vendor/
+installer/UninstallFiles.nsh
+*.user
+*.suo
+*.framepress-*
+.framepress-*
+
+# Local one-time project creators/updaters are not the application source.
+/Create-FramePress.ps1
+/Fix-FramePress-UI.ps1
+/Update-FramePress-*.ps1

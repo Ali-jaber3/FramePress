@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FramePress.App/FramePress.App.csproj" />
+    <Project Path="src/FramePress.Core/FramePress.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FramePress.Tests/FramePress.Tests.csproj" />
+  </Folder>
+</Solution>
