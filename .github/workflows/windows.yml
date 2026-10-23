@@ -24,7 +24,7 @@ jobs:
       - name: Test, publish and create installer
         shell: pwsh
         run: ./Build-Release.ps1
-            - name: WPF startup and render smoke test
+      - name: WPF startup and render smoke test
         shell: pwsh
         run: |
           $process = Start-Process ./artifacts/publish/FramePress.App.exe -ArgumentList "--smoke-test" -PassThru
