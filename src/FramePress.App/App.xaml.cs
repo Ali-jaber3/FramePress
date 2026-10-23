@@ -20,8 +20,15 @@ public partial class App : Application
     }
     protected override void OnStartup(StartupEventArgs e)
     {
-        if (!e.Args.Contains("--smoke-test")) { base.OnStartup(e); return; }
-        StartupUri = null; base.OnStartup(e);
+        base.OnStartup(e);
+
+if (!e.Args.Contains("--smoke-test"))
+{
+    var mainWindow = new MainWindow();
+    MainWindow = mainWindow;
+    mainWindow.Show();
+    return;
+}
         Directory.CreateDirectory("artifacts");
         var logPath = Path.Combine("artifacts", "wpf-bindings.log");
         var listener = new TextWriterTraceListener(logPath);
@@ -65,7 +72,11 @@ public partial class App : Application
                         }
                     }
                     listener.Flush();
-                    var errors = File.ReadAllText(logPath).Contains("System.Windows.Data Error", StringComparison.Ordinal);
+PresentationTraceSources.DataBindingSource.Listeners.Remove(listener);
+listener.Close();
+
+var errors = File.ReadAllText(logPath)
+    .Contains("System.Windows.Data Error", StringComparison.Ordinal);
                     window.Close(); Shutdown(errors ? 1 : 0);
                 }
                 catch (Exception error) { File.WriteAllText(Path.Combine("artifacts", "ui-smoke-error.txt"), error.ToString()); Shutdown(1); }
