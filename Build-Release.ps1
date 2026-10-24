@@ -25,4 +25,4 @@ if (!$nsis) { $nsis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe" }
 if (!(Test-Path $nsis)) { throw 'Install NSIS 3 to build the installer. The portable app is already in artifacts/publish.' }
 & $nsis ./installer/FramePress.nsi
 if ($LASTEXITCODE -ne 0) { throw 'NSIS failed.' }
-Get-FileHash './artifacts/FramePress-v0.1.0-Setup.exe' -Algorithm SHA256 | Format-List
+Get-FileHash './artifacts/FramePress-v0.1.1-Setup.exe' -Algorithm SHA256 | Format-List

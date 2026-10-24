@@ -12,6 +12,7 @@ public sealed record EncoderMeasurement(string Encoder, double Seconds, int Fram
 public sealed class EncoderPolicy(MediaEngine engine)
 {
     private readonly ConcurrentDictionary<string, string> _working = new();
+    private readonly ConcurrentDictionary<string, byte> _unavailable = new();
     public static string[] Modes { get; } = ["Auto", "CPU", "NVIDIA", "Intel", "AMD"];
     public static IEnumerable<string> Candidates(string mode, string codec)
     {
@@ -61,13 +62,15 @@ public sealed class EncoderPolicy(MediaEngine engine)
         foreach (var candidate in candidates)
         {
             token.ThrowIfCancellationRequested();
+            var unavailableKey = candidate + ":" + tenBit;
+            if (_unavailable.ContainsKey(unavailableKey)) continue;
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
-            timeout.CancelAfter(TimeSpan.FromSeconds(12));
+            timeout.CancelAfter(TimeSpan.FromSeconds(8));
             var probe = new List<string> { "-v", "error", "-nostdin" };
             if (media is not null)
                 probe.AddRange(["-ss", Math.Max(0, media.Duration / 2 - 1).ToString("0.###", CultureInfo.InvariantCulture), "-i", media.Path]);
             else probe.AddRange(["-f", "lavfi", "-i", "testsrc2=size=960x540:rate=24"]);
-            probe.AddRange(["-map", "0:v:0", "-t", "2", "-frames:v", "48", "-an", "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2"]);
+            probe.AddRange(["-map", "0:v:0", "-t", "1", "-frames:v", "24", "-an", "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2"]);
             probe.AddRange(Arguments(candidate, profile));
             probe.AddRange(["-pix_fmt", PixelFormat(candidate, tenBit), "-progress", "pipe:1", "-nostats", "-f", "null", "-"]);
             var watch = Stopwatch.StartNew(); var frames = 0;
@@ -83,6 +86,9 @@ public sealed class EncoderPolicy(MediaEngine engine)
             }
             catch (OperationCanceledException) when (!token.IsCancellationRequested)
             { measurement = new(candidate, watch.Elapsed.TotalSeconds, frames, false, "Encoder benchmark timed out."); }
+            if (!measurement.Success && new[] { "Cannot load", "No device", "No capable devices", "Unknown encoder", "Error loading", "unsupported (-3)" }
+                .Any(message => measurement.Detail.Contains(message, StringComparison.OrdinalIgnoreCase)))
+                _unavailable.TryAdd(unavailableKey, 0);
             measurements.Add(measurement); measured?.Invoke(measurement);
             if (mode != "Auto" && measurement.Success) { _working[key] = candidate; return candidate; }
         }

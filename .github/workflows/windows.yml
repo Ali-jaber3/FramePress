@@ -28,25 +28,28 @@ jobs:
         shell: pwsh
         run: |
           $process = Start-Process ./artifacts/publish/FramePress.App.exe -ArgumentList "--smoke-test" -PassThru
-          if (!$process.WaitForExit(60000)) {
-            $process.Kill()
-            throw "WPF smoke test timed out"
-          }
+          if (!$process.WaitForExit(60000)) { $process.Kill(); throw "WPF smoke test timed out" }
           $process.Refresh()
           if ($process.ExitCode -ne 0) {
-            foreach ($log in @("artifacts/ui-smoke-error.txt", "artifacts/wpf-bindings.log")) {
-              if (Test-Path $log) {
-                Write-Host "Log: $log"
-                Get-Content $log
-              }
-            }
+            Get-Content artifacts/ui-smoke-error.txt -ErrorAction SilentlyContinue
+            Get-Content artifacts/wpf-bindings.log -ErrorAction SilentlyContinue
             throw "WPF startup or binding validation failed"
           }
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FramePress-Diagnostics
+          path: |
+            artifacts/ui-smoke-error.txt
+            artifacts/wpf-bindings.log
+            artifacts/FramePress-ui-*.png
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: FramePress-Windows
           path: |
-            artifacts/FramePress-v0.1.0-Setup.exe
+            artifacts/FramePress-v0.1.1-Setup.exe
             artifacts/publish/**
             artifacts/FramePress-ui-*.png
             artifacts/wpf-bindings.log

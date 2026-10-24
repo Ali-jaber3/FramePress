@@ -21,14 +21,10 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-
-if (!e.Args.Contains("--smoke-test"))
-{
-    var mainWindow = new MainWindow();
-    MainWindow = mainWindow;
-    mainWindow.Show();
-    return;
-}
+        if (!e.Args.Contains("--smoke-test"))
+        {
+            var mainWindow = new MainWindow(); MainWindow = mainWindow; mainWindow.Show(); return;
+        }
         Directory.CreateDirectory("artifacts");
         var logPath = Path.Combine("artifacts", "wpf-bindings.log");
         var listener = new TextWriterTraceListener(logPath);
@@ -72,11 +68,9 @@ if (!e.Args.Contains("--smoke-test"))
                         }
                     }
                     listener.Flush();
-PresentationTraceSources.DataBindingSource.Listeners.Remove(listener);
-listener.Close();
-
-var errors = File.ReadAllText(logPath)
-    .Contains("System.Windows.Data Error", StringComparison.Ordinal);
+                    PresentationTraceSources.DataBindingSource.Listeners.Remove(listener);
+                    listener.Close();
+                    var errors = File.ReadAllText(logPath).Contains("System.Windows.Data Error", StringComparison.Ordinal);
                     window.Close(); Shutdown(errors ? 1 : 0);
                 }
                 catch (Exception error) { File.WriteAllText(Path.Combine("artifacts", "ui-smoke-error.txt"), error.ToString()); Shutdown(1); }

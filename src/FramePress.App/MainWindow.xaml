@@ -4,7 +4,7 @@
  xmlns:core="clr-namespace:FramePress.Core;assembly=FramePress.Core"
  Background="{DynamicResource BackgroundBrush}" Foreground="{DynamicResource TextBrush}"
  FontFamily="Segoe UI" FontSize="13" Language="{Binding L.Code, ConverterCulture=en-US}"
- Title="FramePress v0.1.0" Width="1360" Height="900" MinWidth="1080" MinHeight="700"
+ Title="FramePress v0.1.1" Width="1360" Height="900" MinWidth="1080" MinHeight="700"
  WindowStartupLocation="CenterScreen" Icon="Assets/FramePress.png"
  FlowDirection="{Binding Direction}" Closing="OnClosing" AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver">
  <Grid Margin="28,22">
@@ -13,7 +13,7 @@
    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
     <Image Source="Assets/FramePress.png" Width="42" Height="42" Margin="0,0,14,0" />
-    <StackPanel><TextBlock Text="FramePress 0.1" FontSize="26" FontWeight="Bold" FlowDirection="LeftToRight" /><TextBlock Text="{Binding L[Tagline]}" Style="{StaticResource Muted}" /></StackPanel>
+    <StackPanel><TextBlock Text="FramePress 0.1.1" FontSize="26" FontWeight="Bold" FlowDirection="LeftToRight" /><TextBlock Text="{Binding L[Tagline]}" Style="{StaticResource Muted}" /></StackPanel>
    </StackPanel>
    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
     <ComboBox x:Name="LanguagePicker" ItemsSource="{Binding Languages}" SelectedItem="{Binding Language}" Width="150" Margin="0,0,12,0" AutomationProperties.Name="Language">
@@ -66,7 +66,7 @@
       <TextBlock Text="{Binding EncoderSummary}" Foreground="{DynamicResource SuccessBrush}" FontSize="11" FlowDirection="LeftToRight" Margin="0,0,0,12" />
       <CheckBox Content="{Binding L[ShowAfter]}" IsChecked="{Binding ShowAfterSize}" Margin="0,0,0,16" />
       <TextBlock Text="{Binding L[Acceleration]}" FontWeight="SemiBold" Margin="0,0,0,8" />
-      <ComboBox ItemsSource="{Binding AccelerationModes}" SelectedItem="{Binding Acceleration}" FlowDirection="LeftToRight" />
+      <ComboBox ItemsSource="{Binding AccelerationModes}" DisplayMemberPath="Name" SelectedValuePath="Value" SelectedValue="{Binding Acceleration}" FlowDirection="LeftToRight" />
       <TextBlock Text="{Binding L[AccelerationHint]}" Style="{StaticResource Muted}" FontSize="11" Margin="0,8,0,12" />
       <CheckBox Content="{Binding L[FullVerification]}" IsChecked="{Binding FullVerification}" />
       <TextBlock Text="{Binding L[VerificationHint]}" Style="{StaticResource Muted}" FontSize="11" Margin="0,8,0,14" />
@@ -144,8 +144,10 @@
            <TextBlock Text="{Binding DataContext.L[Quality], RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource Muted}" />
            <Slider Minimum="16" Maximum="30" Value="{Binding Crf}" IsSnapToTickEnabled="True" TickFrequency="1" Margin="0,8" />
            <TextBlock Text="{Binding Crf, StringFormat=CRF {0}}" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" FlowDirection="LeftToRight" />
+           <TextBlock Text="{Binding QualityHint}" TextWrapping="Wrap" FontSize="11" Margin="0,6,0,0" />
+           <TextBlock Text="{Binding DataContext.L[CrfHelp], RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap" FontSize="11" Margin="0,6,0,0" Style="{StaticResource Muted}" />
            <TextBlock Text="{Binding DataContext.L[Speed], RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource Muted}" Margin="0,12,0,6" />
-           <ComboBox ItemsSource="{x:Static core:CompressionProfile.Presets}" SelectedItem="{Binding Preset}" FlowDirection="LeftToRight" />
+           <ComboBox ItemsSource="{Binding DataContext.SpeedChoices, RelativeSource={RelativeSource AncestorType=Window}}" DisplayMemberPath="Name" SelectedValuePath="Value" SelectedValue="{Binding Preset}" FlowDirection="LeftToRight" />
            <TextBlock Text="{Binding DataContext.L[Codec], RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource Muted}" Margin="0,12,0,6" />
            <ComboBox ItemsSource="{x:Static core:CompressionProfile.Codecs}" SelectedItem="{Binding Codec}" FlowDirection="LeftToRight" />
            <TextBlock Text="{Binding SampleSummary}" Foreground="{DynamicResource SuccessBrush}" TextWrapping="Wrap" FontSize="11" Margin="0,10,0,0" />

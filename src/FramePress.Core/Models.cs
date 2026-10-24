@@ -28,7 +28,7 @@ public sealed class CompressionProfile : Observable
     public string Codec { get => _codec; set { if (Set(ref _codec, value)) SampleSummary = ""; } }
     [JsonIgnore]
     public string SampleSummary { get => _sampleSummary; set => Set(ref _sampleSummary, value); }
-    public string QualityHint => Crf <= 20 ? "18–20 · high / مرتفعة" : Crf <= 23 ? "21–23 · balanced / متوازنة" : "24–28 · smaller / أصغر";
+    public string QualityHint => Crf <= 20 ? "16–20 · High quality / جودة مرتفعة" : Crf <= 23 ? "21–23 · Balanced / متوازنة" : "24–30 · More visible loss / فقد أوضح للتفاصيل";
     public CompressionProfile Snapshot() => new() { Tier = Tier, Enabled = Enabled, Crf = Crf, Preset = Preset, Codec = Codec };
     public void Validate()
     {
@@ -89,7 +89,7 @@ public sealed record JobOptions(bool Replace, string? OutputRoot, string? Source
 public sealed record JobProgress(double Fraction, string Stage, double EncodedSeconds, string Encoder = "");
 public sealed record JobResult(string Source, string Output, string Backup, string State,
     long InputBytes, long OutputBytes, double ElapsedSeconds, string Detail,
-    double? HourMinutes = null, double? EstimatedFullBytes = null);
+    double? HourMinutes = null, double? EstimatedFullBytes = null, double? SampleSsim = null);
 public sealed record SampleEstimate(double HourMinutes, double FullBytes, double SampleSeconds);
 
 public static class Display

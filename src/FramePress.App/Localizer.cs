@@ -5,6 +5,7 @@ using System.Windows;
 using FramePress.Core;
 
 namespace FramePress.App;
+public sealed record ChoiceOption(string Value, string Name);
 public sealed record LanguageOption(string Code, string Name);
 public sealed class Localizer : Observable
 {

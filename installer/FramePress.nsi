@@ -1,7 +1,7 @@
 Unicode True
 !include "MUI2.nsh"
 Name "FramePress"
-OutFile "..\artifacts\FramePress-v0.1.0-Setup.exe"
+OutFile "..\artifacts\FramePress-v0.1.1-Setup.exe"
 InstallDir "$LOCALAPPDATA\Programs\FramePress"
 InstallDirRegKey HKCU "Software\FramePress" "InstallDir"
 RequestExecutionLevel user
@@ -30,9 +30,10 @@ Section "FramePress" SEC_MAIN
  CreateShortcut "$SMPROGRAMS\FramePress\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
  WriteRegStr HKCU "Software\FramePress" "InstallDir" "$INSTDIR"
  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "DisplayName" "FramePress"
- WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "DisplayVersion" "0.1.0"
+ WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "DisplayVersion" "0.1.1"
  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "DisplayIcon" "$INSTDIR\FramePress.App.exe"
  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
+ WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "NoModify" 1
  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\FramePress" "NoRepair" 1
 SectionEnd
 Section /o "Desktop shortcut" SEC_DESKTOP

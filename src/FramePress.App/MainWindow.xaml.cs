@@ -51,7 +51,24 @@ public partial class MainWindow : Window
     private async void Scan(object sender, RoutedEventArgs e) => await VM.ScanAsync();
     private async void Start(object sender, RoutedEventArgs e) => await VM.RunFolderAsync();
     private async void ManualStart(object sender, RoutedEventArgs e) => await VM.RunAsync(false, QueueGrid.SelectedItem as QueueItem);
-    private async void Sample(object sender, RoutedEventArgs e) => await VM.RunAsync(true, QueueGrid.SelectedItem as QueueItem);
+    private async void Sample(object sender, RoutedEventArgs e)
+    {
+        if (VM.Busy) return;
+        var selected = QueueGrid.SelectedItem as QueueItem;
+        if (selected is null || selected.Media.IsImage)
+        {
+            var dialog = new OpenFileDialog { Title = VM.L["Sample"], Filter = "Video|*.mp4;*.mov;*.mkv;*.avi;*.mxf;*.mts;*.m2ts;*.m4v;*.webm;*.wmv;*.mpg;*.mpeg" };
+            if (dialog.ShowDialog(this) != true) return;
+            try
+            {
+                var engine = new MediaEngine();
+                selected = new QueueItem(await engine.ProbeAsync(dialog.FileName, CancellationToken.None));
+                VM.Files.Add(selected);
+            }
+            catch (Exception error) { MessageBox.Show(error.Message, "FramePress"); return; }
+        }
+        await VM.RunAsync(true, selected);
+    }
     private void Cancel(object sender, RoutedEventArgs e) => VM.Cancel();
     private void Clear(object sender, RoutedEventArgs e) => VM.Clear();
     private void SelectAll(object sender, RoutedEventArgs e)

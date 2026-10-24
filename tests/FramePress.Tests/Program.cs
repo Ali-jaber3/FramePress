@@ -59,14 +59,16 @@ try
         var m=await Video("silent.mov",sound:false);
         var r=await engine.ProcessAsync(m,new(),new(false,null,root),null,CancellationToken.None); Check(r.State=="Done","silent output");
     });
-    await Test("replacement preserves original recovery bytes", async () =>
+    await Test("replacement keeps base name and deletes original without leftovers", async () =>
     {
         var m=await Video("replace.mov"); var bytes=File.ReadAllBytes(m.Path);
         var r=await engine.ProcessAsync(m,new(),new(true,null,root),null,CancellationToken.None);
-        Check(r.State=="Done" && File.Exists(r.Output),"output"); Check(File.ReadAllBytes(r.Backup).SequenceEqual(bytes),"backup"); Check(!File.Exists(m.Path),"old container path");
+        Check(r.State=="Done" && File.Exists(r.Output),"output"); Check(r.Backup=="" && r.Output==Path.ChangeExtension(m.Path,".mp4"),"clean replacement name"); Check(!File.Exists(m.Path),"old container path");
         Check(!Directory.EnumerateFiles(root,".framepress-transaction-*.json").Any(),"transaction not completed");
+        Check(!Directory.EnumerateFiles(root,"*.framepress-backup-*").Any(),"backup left behind");
+        Check(!Directory.EnumerateFiles(root,".framepress-work-*").Any(),"work file left behind");
     });
-    await Test("MP4 same-path replacement keeps recovery backup", async () =>
+    await Test("MP4 same-path replacement leaves no backup", async () =>
     {
         var m=await Video("first.mov"); var copy=await engine.ProcessAsync(m,new(),new(false,null,root),null,CancellationToken.None);
         var high=await engine.ProbeAsync(copy.Output,CancellationToken.None);
@@ -74,7 +76,7 @@ try
         var path=Path.Combine(root,"same.mp4"); var encode=await ProcessRunner.RunAsync(engine.Ffmpeg,["-v","error","-i",m.Path,"-c:v","libx264","-crf","0","-c:a","aac",path],CancellationToken.None);
         Check(encode.ExitCode==0,"fixture"); var sourceMp4=await engine.ProbeAsync(path,CancellationToken.None); var bytes=File.ReadAllBytes(path);
         var r=await engine.ProcessAsync(sourceMp4,new(),new(true,null,root),null,CancellationToken.None);
-        Check(r.State=="Done" && r.Output==path,"same path"); Check(File.ReadAllBytes(r.Backup).SequenceEqual(bytes),"mp4 recovery");
+        Check(r.State=="Done" && r.Output==path,"same path"); Check(r.Backup=="" && !File.ReadAllBytes(path).SequenceEqual(bytes),"original replaced without backup");
     });
     await Test("pre-cancel leaves master untouched", async () =>
     {
@@ -200,7 +202,7 @@ try
     {
         var m=await Video("fast-replace.mov");
         var r=await engine.ProcessAsync(m,new(),new(true,null,root,FullVerification:false),null,CancellationToken.None);
-        Check(r.Detail.Contains("full decode") && File.Exists(r.Backup),"replacement safety");
+        Check(r.Detail.Contains("full decode") && r.Backup=="","replacement safety");
     });
     await Test("automatic hardware selection produces valid output or CPU fallback", async () =>
     {
@@ -278,6 +280,47 @@ try
     {
         var path=Path.Combine(root,"report.csv"); MediaEngine.ExportCsv([new("=HYPERLINK(\"x\")","a,b","","Error",1,1,0,"line\nbreak")],path);
         var text=File.ReadAllText(path); Check(text.Contains("'=HYPERLINK") && text.Contains("\"a,b\""),"unsafe CSV"); return Task.CompletedTask;
+    });
+    await Test("replacement collision preserves both existing files", async () =>
+    {
+        var m=await Video("collision.mov"); var original=File.ReadAllBytes(m.Path);
+        var target=Path.ChangeExtension(m.Path,".mp4"); File.WriteAllText(target,"existing media");
+        try { await engine.ProcessAsync(m,new(),new(true,null,root),null,CancellationToken.None); throw new Exception("collision accepted"); }
+        catch(IOException) { }
+        Check(File.ReadAllBytes(m.Path).SequenceEqual(original),"source changed");
+        Check(File.ReadAllText(target)=="existing media","sibling overwritten");
+    });
+    await Test("sample measures actual SSIM without leaving a sample file", async () =>
+    {
+        var m=await Video("quality.mov",sound:false);
+        var before=Directory.GetFiles(root).ToHashSet();
+        var result=await engine.ProcessAsync(m,new(),new(false,null,root,Sample:true),null,CancellationToken.None);
+        Check(result.SampleSsim is >= 0 and <= 1,"SSIM unavailable: "+result.Detail);
+        Check(result.Output=="" && File.Exists(m.Path),"sample published or source lost");
+        Check(!Directory.GetFiles(root).Except(before).Any(),"sample leftover");
+    });
+    await Test("failed replacement publish preserves source", () =>
+    {
+        var source=Path.Combine(root,"commit.mp4");File.WriteAllText(source,"original");
+        try { OutputCommitter.Replace(Path.Combine(root,"missing.tmp"),source,source);throw new Exception("missing input accepted"); }
+        catch(IOException) { }
+        Check(File.ReadAllText(source)=="original","source changed");return Task.CompletedTask;
+    });
+    await Test("larger video is skipped without replacing source or leaving files", async () =>
+    {
+        var m=await Video("budget.mov",640,360,false,4);
+        var first=await engine.ProcessAsync(m,new(){Crf=30,Preset="slow"},new(false,null,root),null,CancellationToken.None);
+        Check(first.State=="Done","budget fixture");
+        var small=await engine.ProbeAsync(first.Output,CancellationToken.None);var original=File.ReadAllBytes(small.Path);
+        var result=await engine.ProcessAsync(small,new(){Crf=16,Preset="ultrafast"},new(true,null,root),null,CancellationToken.None);
+        Check(result.State=="LargerSkipped","larger output accepted");
+        Check(File.ReadAllBytes(small.Path).SequenceEqual(original),"source replaced");
+        Check(!Directory.EnumerateFiles(root,".framepress-work-*").Any(),"temporary file leaked");
+    });
+    await Test("SSIM parser does not invent a score", () =>
+    {
+        Check(MediaEngine.ParseSsim("[Parsed_ssim_0] SSIM Y:0.9 All:0.987654 (19.0)")==.987654,"score");
+        Check(MediaEngine.ParseSsim("filter unavailable") is null,"invented score");return Task.CompletedTask;
     });
     await Test("ten complete language dictionaries and well-formed XAML", () =>
     {

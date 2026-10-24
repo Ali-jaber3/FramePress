@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace FramePress.Core;
 
@@ -106,7 +107,7 @@ public sealed class MediaEngine
         if (o.ImageQuality is < 50 or > 100) throw new ArgumentException("Image quality must be 50–100.");
         if (o.Sample && m.IsImage) throw new ArgumentException("Select a video for sampling.");
         if (m.VideoStreams != 1 || m.HasSubtitles) throw new IOException("Review required: multiple video streams or subtitles.");
-        if (m.HasData && o.Replace) throw new IOException("Copy mode required: professional data/timecode streams are not preserved.");
+        if (m.HasData && o.Replace && !o.Sample) throw new IOException("Copy mode required: professional data/timecode streams are not preserved.");
         if (m.IsHdr) throw new IOException("HDR skipped: this release does not implement verified HDR metadata preservation or tone mapping.");
         if (!m.IsImage && m.IsHighBitDepth && (!o.AllowHighBitDepth || p.Codec != "H.265"))
             throw new IOException("10-bit+ source: use H.265 and enable 10-bit SDR output, or keep the camera master.");
@@ -118,7 +119,7 @@ public sealed class MediaEngine
         if (o.Sample) args.AddRange(["-ss", Math.Max(0, m.Duration / 2 - 10).ToString("0.###", CultureInfo.InvariantCulture)]);
         args.AddRange(["-i", m.Path]);
         if (m.IsImage)
-            args.AddRange(["-map", "0:v:0", "-frames:v", "1", "-c:v", "libwebp", "-quality", o.ImageQuality.ToString(CultureInfo.InvariantCulture), "-compression_level", "6"]);
+            args.AddRange(["-map", "0:v:0", "-frames:v", "1", "-c:v", "libwebp", "-quality", o.ImageQuality.ToString(CultureInfo.InvariantCulture), "-compression_level", "4"]);
         else
         {
             if (o.Sample) args.AddRange(["-t", "20"]);
@@ -153,15 +154,23 @@ public sealed class MediaEngine
         var directory = OutputDirectory(media, options); Directory.CreateDirectory(directory);
         var suffix = media.IsImage ? ".webp" : ".mp4"; var id = Guid.NewGuid().ToString("N")[..10];
         var temp = System.IO.Path.Combine(directory, $".framepress-work-{id}{suffix}");
-        var output = System.IO.Path.Combine(directory, $"{System.IO.Path.GetFileNameWithoutExtension(media.Path)}.framepress-{(options.Sample ? "sample-" : "")}{id}{suffix}");
-        var journal = System.IO.Path.Combine(directory, $".framepress-transaction-{id}.json");
+        var stem = System.IO.Path.GetFileNameWithoutExtension(media.Path);
+        var output = options.Replace && !options.Sample
+            ? OutputCommitter.ReplacementPath(media.Path, suffix)
+            : System.IO.Path.Combine(directory, $"{stem}.framepress-compressed{suffix}");
+        if (options.Replace && !options.Sample) OutputCommitter.EnsureTargetAvailable(media.Path, output);
+        else
+        {
+            var number = 2;
+            while (File.Exists(output)) output = System.IO.Path.Combine(directory, $"{stem}.framepress-compressed-{number++}{suffix}");
+        }
         var clock = Stopwatch.StartNew(); var backup = "";
         var expectedSeconds = options.Sample ? Math.Min(20, media.Duration - Math.Max(0, media.Duration / 2 - 10)) : media.Duration;
         try
         {
             var drive = new DriveInfo(System.IO.Path.GetPathRoot(directory)!);
             if (drive.IsReady && drive.AvailableFreeSpace < Math.Min(media.Bytes, 512L * 1024 * 1024)) throw new IOException("Insufficient free space.");
-            var fullVerification = options.FullVerification || options.Replace;
+            var fullVerification = !options.Sample && (options.FullVerification || options.Replace);
             progress?.Report(new(0, "SelectingEncoder", 0));
             var selectionStarted = clock.Elapsed.TotalSeconds;
             var encoder = media.IsImage ? "libwebp" : await _encoderPolicy.ResolveAsync(options.Acceleration, profile, media.IsHighBitDepth, token, media, m => EncoderMeasured?.Invoke(m));
@@ -173,7 +182,8 @@ public sealed class MediaEngine
                 if (line.StartsWith("out_time_us=", StringComparison.Ordinal) && double.TryParse(line[12..], NumberStyles.Float, CultureInfo.InvariantCulture, out var us))
                     progress?.Report(new(Math.Clamp(us / 1e6 / Math.Max(1, expectedSeconds), 0, .98) * (fullVerification ? .85 : .95), "Encoding", us / 1e6, encoder));
             }
-            var encoded = await ProcessRunner.RunAsync(Ffmpeg, BuildCommand(media, profile, options, temp, encoder), token, OnLine);
+            var encoded = await EncodeWithinBudgetAsync(BuildCommand(media, profile, options, temp, encoder), options.Sample ? null : media.Bytes, token, OnLine);
+            if (encoded is null) return new(media.Path, "", "", "LargerSkipped", media.Bytes, media.Bytes, clock.Elapsed.TotalSeconds, "Encoding stopped when output reached original size; original retained.");
             if (encoded.ExitCode != 0 && !media.IsImage && !encoder.StartsWith("lib", StringComparison.Ordinal))
             {
                 token.ThrowIfCancellationRequested();
@@ -181,9 +191,15 @@ public sealed class MediaEngine
                 _encoderPolicy.Disable(options.Acceleration, profile, media.IsHighBitDepth, media);
                 encoder = EncoderPolicy.Software(profile.Codec); fellBack = true;
                 progress?.Report(new(0, "CpuFallback", 0));
-                encoded = await ProcessRunner.RunAsync(Ffmpeg, BuildCommand(media, profile, options, temp, encoder), token, OnLine);
+                encoded = await EncodeWithinBudgetAsync(BuildCommand(media, profile, options, temp, encoder), options.Sample ? null : media.Bytes, token, OnLine);
+                if (encoded is null) return new(media.Path, "", "", "LargerSkipped", media.Bytes, media.Bytes, clock.Elapsed.TotalSeconds, "Encoding stopped when output reached original size; original retained.");
             }
             if (encoded.ExitCode != 0) throw new IOException(encoded.Error);
+            var bytes = new FileInfo(temp).Length;
+            if (bytes == 0) throw new IOException("Empty output.");
+            if (!options.Sample && bytes >= media.Bytes)
+                return new(media.Path, "", "", "LargerSkipped", media.Bytes, media.Bytes, clock.Elapsed.TotalSeconds,
+                    "Output was not smaller; temporary output deleted and original retained. Try a higher quality-number or H.265; test a sample first.");
             progress?.Report(new(fullVerification ? .86 : .96, "Verifying", expectedSeconds, encoder));
             var check = await ProbeAsync(temp, token);
             var rotated = double.TryParse(media.Rotation, NumberStyles.Float, CultureInfo.InvariantCulture, out var angle) && Math.Abs(angle % 180) > 89 && Math.Abs(angle % 180) < 91;
@@ -203,39 +219,68 @@ public sealed class MediaEngine
                 if (decode.ExitCode != 0) throw new IOException("Output decode failed: " + decode.Error);
             }
             token.ThrowIfCancellationRequested();
-            var bytes = new FileInfo(temp).Length;
-            if (bytes == 0) throw new IOException("Empty output.");
-            if (!options.Sample && bytes >= media.Bytes)
-                return new(media.Path, "", "", "LargerSkipped", media.Bytes, media.Bytes, clock.Elapsed.TotalSeconds, "Output was not smaller; original retained.");
+
             var now = new FileInfo(media.Path);
             if (now.Length != media.Bytes || now.LastWriteTimeUtc != media.LastWriteUtc) throw new IOException("Source changed since scan. Scan again.");
-            if (options.Replace && !options.Sample)
+            var encodeSeconds = Math.Max(.001, clock.Elapsed.TotalSeconds - selectionSeconds);
+            double? similarity = null;
+            var qualityNote = "";
+            if (options.Sample)
             {
-                backup = media.Path + ".framepress-backup-" + id;
-                if (System.IO.Path.GetExtension(media.Path).Equals(suffix, StringComparison.OrdinalIgnoreCase)) output = media.Path;
-                // Durable recovery note is created before moving the master.
-                using (var stream = new FileStream(journal, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
-                {
-                    JsonSerializer.Serialize(stream, new { Source = media.Path, Backup = backup, Output = output, Temporary = temp }); stream.Flush(true);
-                }
-                File.Move(media.Path, backup, overwrite: false);
-                try { File.Move(temp, output, overwrite: false); }
-                catch
-                {
-                    if (!File.Exists(media.Path)) File.Move(backup, media.Path, overwrite: false);
-                    throw;
-                }
-                File.Delete(journal);
+                progress?.Report(new(.98, "MeasuringQuality", expectedSeconds, encoder));
+                try { similarity = await MeasureSampleSsimAsync(media, temp, expectedSeconds, token); }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                catch (Exception error) when (error is IOException or OperationCanceledException)
+                { qualityNote = " SSIM unavailable: " + error.Message; }
+                // Sample files are temporary; only the estimate and measurement survive.
+                output = "";
             }
+            else if (options.Replace) OutputCommitter.Replace(temp, media.Path, output);
             else File.Move(temp, output, overwrite: false);
             clock.Stop(); progress?.Report(new(1, "Done", expectedSeconds));
-            var estimate = options.Sample ? Estimate(Math.Max(.001, clock.Elapsed.TotalSeconds - selectionSeconds), expectedSeconds, bytes, media.Duration) : null;
-            var detail = $"Encoder: {encoder}. Validation: {(fullVerification ? "probe + full decode" : "probe only")}.";
+            var estimate = options.Sample ? Estimate(encodeSeconds, expectedSeconds, bytes, media.Duration) : null;
+            var detail = $"Encoder: {encoder}. Validation: {(fullVerification ? "probe + full decode" : "probe only")}." + qualityNote;
             if (fellBack) detail += " Hardware encode failed; retried successfully on CPU.";
             if (media.HasData) detail += " Camera data/timecode streams omitted; original must be retained.";
-            return new(media.Path, output, backup, options.Sample ? "Sample" : "Done", media.Bytes, bytes, clock.Elapsed.TotalSeconds, detail, estimate?.HourMinutes, estimate?.FullBytes);
+            return new(media.Path, output, backup, options.Sample ? "Sample" : "Done", media.Bytes, bytes, clock.Elapsed.TotalSeconds, detail, estimate?.HourMinutes, estimate?.FullBytes, similarity);
         }
         finally { if (File.Exists(temp)) File.Delete(temp); }
+    }
+    private async Task<ProcessResult?> EncodeWithinBudgetAsync(List<string> args, long? budget,
+        CancellationToken token, Action<string> progress)
+    {
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var tooLarge = false;
+        try
+        {
+            return await ProcessRunner.RunAsync(Ffmpeg, args, stop.Token, line =>
+            {
+                if (budget is { } limit && line.StartsWith("total_size=", StringComparison.Ordinal)
+                    && long.TryParse(line[11..], NumberStyles.Integer, CultureInfo.InvariantCulture, out var size) && size >= limit)
+                { tooLarge = true; stop.Cancel(); }
+                progress(line);
+            });
+        }
+        catch (OperationCanceledException) when (tooLarge && !token.IsCancellationRequested) { return null; }
+    }
+    public static double? ParseSsim(string text)
+    {
+        var matches = Regex.Matches(text, @"SSIM.*?All:([0-9]+(?:\.[0-9]+)?)");
+        return matches.Count > 0 && double.TryParse(matches[^1].Groups[1].Value, NumberStyles.Float,
+            CultureInfo.InvariantCulture, out var score) && score is >= 0 and <= 1 ? score : null;
+    }
+    public async Task<double?> MeasureSampleSsimAsync(MediaInfo media, string sample, double duration, CancellationToken token)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token); timeout.CancelAfter(TimeSpan.FromSeconds(90));
+        var offset = Math.Max(0, media.Duration / 2 - 10).ToString("0.###", CultureInfo.InvariantCulture);
+        var format = media.IsHighBitDepth ? "yuv420p10le" : "yuv420p";
+        var normalize = $"pad=ceil(iw/2)*2:ceil(ih/2)*2,format={format},settb=AVTB,setpts=PTS-STARTPTS";
+        var filter = $"[0:v:0]{normalize}[ref];[1:v:0]{normalize}[out];[ref][out]ssim=shortest=1";
+        var result = await ProcessRunner.RunAsync(Ffmpeg, ["-hide_banner", "-nostdin", "-v", "info", "-ss", offset,
+            "-i", media.Path, "-i", sample, "-filter_complex", filter, "-an", "-t",
+            duration.ToString("0.###", CultureInfo.InvariantCulture), "-f", "null", "-"], timeout.Token);
+        if (result.ExitCode != 0) throw new IOException(result.Error);
+        return ParseSsim(result.Error);
     }
     public static void ExportCsv(IEnumerable<JobResult> rows, string path)
     {

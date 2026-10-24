@@ -29,7 +29,8 @@ public sealed class MainViewModel : Observable
     public string HardwareGpu { get => _hardwareGpu; private set => Set(ref _hardwareGpu, value); }
     public string EncoderSummary { get => _encoderSummary; private set => Set(ref _encoderSummary, value); }
     public string OutputSize => Display.Bytes(Results.Where(r => r.State == "Done").Sum(r => (double)r.OutputBytes));
-    public string[] AccelerationModes => EncoderPolicy.Modes;
+    public ChoiceOption[] AccelerationModes => EncoderPolicy.Modes.Select(value => new ChoiceOption(value, L["Acceleration_" + value])).ToArray();
+    public ChoiceOption[] SpeedChoices => CompressionProfile.Presets.Select(value => new ChoiceOption(value, L["Preset_" + value])).ToArray();
     public string Acceleration { get => _acceleration; set => Set(ref _acceleration, value); }
     public bool FullVerification { get => _fullVerification; set => Set(ref _fullVerification, value); }
     public bool Indeterminate { get => _indeterminate; private set => Set(ref _indeterminate, value); }
@@ -51,7 +52,7 @@ public sealed class MainViewModel : Observable
     public LanguageOption Language
     {
         get => _language;
-        set { if (Set(ref _language, value) && value is not null) { L.SetLanguage(value.Code); Raise(nameof(Direction)); } }
+        set { if (Set(ref _language, value) && value is not null) { L.SetLanguage(value.Code); Raise(nameof(Direction)); Raise(nameof(AccelerationModes)); Raise(nameof(SpeedChoices)); } }
     }
     public FlowDirection Direction => L.Direction;
     public MainViewModel()
@@ -222,7 +223,11 @@ public sealed class MainViewModel : Observable
                     item.Completed = !sample && result.State is "Done" or "LargerSkipped";
                     if (result.HourMinutes is { } minutes)
                     {
-                        Estimate = string.Format(L["SampleEstimate"], minutes.ToString("0.0"), Display.Bytes(result.EstimatedFullBytes ?? 0));
+                        Estimate = string.Format(L["SampleEstimate"], minutes.ToString("0.0"), Display.Bytes(result.EstimatedFullBytes ?? 0), (minutes * item.Media.Duration / 3600).ToString("0.0"), item.Name);
+                        if (result.SampleSsim is { } ssim)
+                            Estimate += "\n" + string.Format(L["QualityMeasured"], (ssim * 100).ToString("0.00"), ((1 - ssim) * 100).ToString("0.00"));
+                        else Estimate += "\n" + L["QualityUnavailable"];
+                        if (result.EstimatedFullBytes >= item.Media.Bytes) Estimate += "\n" + L["SampleLarger"];
                         Profiles.Single(p => p.Tier == item.Tier).SampleSummary = Estimate;
                     }
                     AddLog(item.Name + " · " + result.State + " · " + result.Detail);
